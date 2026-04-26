@@ -1,12 +1,25 @@
 {
-  "policy_type": "simple_ppo_preference",
+  "policy_type": "minimal_ppo_preference",
   "preferences": {
-    "noop": 0.29601999999999995,
-    "assign_runway": 0.9346499999999999,
-    "sequence_landing": 0.72619,
-    "clear_to_land": 1.3321800000000037,
-    "declare_emergency": 0.3438099999999998
+    "noop": -1.8440107210842498,
+    "assign_runway": -1.8725604914125031,
+    "sequence_landing": 0.5304475238924086,
+    "clear_to_land": 1.6927789743584754,
+    "declare_emergency": -0.2559720147033512
   },
   "learning_rate": 0.05,
-  "clip_epsilon": 0.2
+  "clip_epsilon": 0.2,
+  "gamma": 0.99,
+  "tracked_action_kinds": [
+    "noop",
+    "assign_runway",
+    "sequence_landing",
+    "hold_pattern",
+    "delay_flight",
+    "reroute_flight",
+    "declare_emergency",
+    "clear_to_land"
+  ],
+  "trl_ready": true,
+  "unsloth_compatible": true
 }

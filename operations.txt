@@ -1,0 +1,35 @@
+MACE OPERATIONS COMMANDS
+========================
+
+From workspace root (\v3):
+
+1) Train mode
+python mace/train.py --episodes 50 --seed 42
+
+2) Quick train smoke test
+python mace/train.py --episodes 2 --seed 42
+
+3) Eval mode (latest model)
+python mace/eval.py --model latest --episodes 50 --seed 42
+
+4) Eval mode (explicit model path)
+python mace/eval.py --model mace/training/model_latest.json --episodes 50 --seed 42
+
+5) Demo mode (judge-facing)
+python mace/run_demo.py --frame-delay 0.6 --stepwise --orchestrate --task hard --seed 42 --model mace/training/model_latest.json
+
+6) Quick demo (no delay)
+python mace/run_demo.py --frame-delay 0 --stepwise --orchestrate --task hard --seed 42 --model mace/training/model_latest.json
+
+7) Syntax compile check
+python -m compileall mace
+
+8) OpenEnv validate
+openenv validate mace
+
+Expected generated artifacts:
+- mace/training/model_latest.json
+- reward_curve.png
+- reports/safety_curve.png
+- reports/metrics.json
+- reports/report.json

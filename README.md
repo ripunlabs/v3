@@ -612,6 +612,35 @@ python inference.py
 
 ---
 
+## Training, evaluation, and demo
+
+MACE now includes a clean RL-ready pipeline split into training, evaluation, and judge-facing demo modes:
+
+```bash
+python train.py --episodes 50
+python eval.py --model latest
+python run_demo.py --frame-delay 0.6 --stepwise --orchestrate
+```
+
+### Outputs generated automatically
+
+- `training/model_latest.json` (PPO-style trained policy preferences)
+- `reports/metrics.json` (structured metrics including before-vs-after table)
+- `reports/report.json` (pitch-ready summary payload)
+- `reward_curve.png` and `reports/safety_curve.png` (reward/safety visualization)
+
+### Live demo view
+
+`run_demo.py` provides timestep orchestration replay with:
+
+- sync/loading animation between steps,
+- ATC / Airline / Ops / Weather decisions,
+- oversight arbitration highlight,
+- final selected environment action,
+- per-step reward updates with safety signals.
+
+---
+
 ## Baseline results
 
 The current deterministic scripted baseline produces the following scores (reproduced with `AACE_INFERENCE_MODE=scripted` and default `AACE_INFERENCE_SEED=42`):

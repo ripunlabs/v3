@@ -1,4 +1,4 @@
-"""Train MACE with a minimal PPO-style loop."""
+"""Evaluate MACE baseline vs trained policy and generate reports."""
 
 from __future__ import annotations
 
@@ -13,21 +13,25 @@ from rich.table import Table
 from evaluation.runner import evaluate_policy
 from evaluation.reporting import summarize, write_metrics_json, write_report_json
 from reports.plots import save_reward_curve, save_safety_curve
-from training.ppo_loop import PPOConfig, PPOTrainer, model_payload
+from training.ppo_loop import load_policy_from_json
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train MACE using a minimal PPO-style policy update loop.")
-    parser.add_argument("--episodes", type=int, default=50, help="Training episodes.")
+    parser = argparse.ArgumentParser(description="Evaluate MACE policies and write structured reports.")
+    parser.add_argument("--model", type=str, default="latest", help="'latest' or explicit path to model json.")
+    parser.add_argument("--episodes", type=int, default=50, help="Evaluation episodes.")
     parser.add_argument("--seed", type=int, default=42, help="Base seed.")
-    parser.add_argument("--learning-rate", type=float, default=0.05, help="PPO update learning rate.")
-    parser.add_argument("--clip-epsilon", type=float, default=0.2, help="PPO clipping epsilon.")
-    parser.add_argument("--model-out", type=str, default="training/model_latest.json", help="Trained model path.")
     return parser.parse_args()
 
 
-def _print_comparison(console: Console, baseline, trained) -> None:
-    table = Table(title="Baseline vs Trained")
+def _resolve_model_path(model_arg: str) -> Path:
+    if model_arg == "latest":
+        return Path("training/model_latest.json")
+    return Path(model_arg)
+
+
+def _print_table(console: Console, baseline, trained) -> None:
+    table = Table(title="MACE Evaluation (Before vs After)")
     table.add_column("Metric", style="bold cyan")
     table.add_column("Baseline", justify="right")
     table.add_column("Trained", justify="right")
@@ -52,33 +56,26 @@ def main() -> None:
     args = parse_args()
     console = Console()
     _print_operations_hint(console)
+    model_path = _resolve_model_path(args.model)
+    if not model_path.exists():
+        raise FileNotFoundError(f"Model file not found: {model_path}")
 
-    trainer = PPOTrainer(
-        PPOConfig(
-            episodes=args.episodes,
-            seed=args.seed,
-            learning_rate=args.learning_rate,
-            clip_epsilon=args.clip_epsilon,
-        )
-    )
-    train_history = trainer.train()
-
-    model_path = Path(args.model_out)
-    model_path.parent.mkdir(parents=True, exist_ok=True)
-    model_path.write_text(
-        json.dumps(model_payload(trainer.policy, trainer.config), indent=2),
-        encoding="utf-8",
-    )
+    policy_payload = json.loads(model_path.read_text(encoding="utf-8"))
+    trained_policy = load_policy_from_json(policy_payload)
 
     baseline_records = evaluate_policy(episodes=args.episodes, seed=args.seed, mode="baseline")
-    trained_records = evaluate_policy(episodes=args.episodes, seed=args.seed, mode="trained", trained_policy=trainer.policy)
+    trained_records = evaluate_policy(
+        episodes=args.episodes,
+        seed=args.seed,
+        mode="trained",
+        trained_policy=trained_policy,
+    )
 
-    baseline_summary = summarize(baseline_records)
-    trained_summary = summarize(trained_records)
-    _print_comparison(console, baseline_summary, trained_summary)
+    baseline = summarize(baseline_records)
+    trained = summarize(trained_records)
+    _print_table(console, baseline, trained)
 
-    reward_curve = [ep.reward for ep in train_history]
-    save_reward_curve(Path("reward_curve.png"), reward_curve)
+    save_reward_curve(Path("reward_curve.png"), [x.reward for x in trained_records])
     save_safety_curve(
         Path("reports/safety_curve.png"),
         [x.safety_violations for x in baseline_records],
@@ -96,9 +93,7 @@ def main() -> None:
         baseline_records=baseline_records,
         trained_records=trained_records,
     )
-
-    console.print(f"[bold green]Model saved:[/bold green] {model_path}")
-    console.print("[bold green]Artifacts:[/bold green] reward_curve.png, reports/metrics.json, reports/report.json")
+    console.print("[bold green]Wrote:[/bold green] reward_curve.png, reports/metrics.json, reports/report.json")
 
 
 if __name__ == "__main__":
