@@ -50,13 +50,25 @@ def write_metrics_json(
 ) -> dict:
     baseline_summary = summarize(baseline_records)
     trained_summary = summarize(trained_records)
+    reward_improvement = trained_summary.avg_reward - baseline_summary.avg_reward
+    violation_improvement = baseline_summary.avg_safety_violations - trained_summary.avg_safety_violations
+    completion_improvement = trained_summary.completion_rate - baseline_summary.completion_rate
     payload = {
         "episodes": episodes,
         "seed": seed,
+        "baseline_avg_reward": round(baseline_summary.avg_reward, 4),
+        "trained_avg_reward": round(trained_summary.avg_reward, 4),
+        "improvement": round(reward_improvement, 4),
+        "baseline_violations": round(baseline_summary.avg_safety_violations, 4),
+        "trained_violations": round(trained_summary.avg_safety_violations, 4),
+        "baseline_completion_rate": round(baseline_summary.completion_rate, 2),
+        "trained_completion_rate": round(trained_summary.completion_rate, 2),
+        "violation_improvement": round(violation_improvement, 4),
+        "completion_improvement": round(completion_improvement, 2),
         "baseline_rewards": [r.reward for r in baseline_records],
         "trained_rewards": [r.reward for r in trained_records],
-        "baseline_violations": [r.safety_violations for r in baseline_records],
-        "trained_violations": [r.safety_violations for r in trained_records],
+        "baseline_violations_per_episode": [r.safety_violations for r in baseline_records],
+        "trained_violations_per_episode": [r.safety_violations for r in trained_records],
         "completion_rate_trained": trained_summary.completion_rate,
         "before_vs_after": before_after_rows(baseline_summary, trained_summary),
     }
@@ -73,11 +85,36 @@ def write_report_json(
 ) -> dict:
     baseline_summary = summarize(baseline_records)
     trained_summary = summarize(trained_records)
+    reward_improvement = trained_summary.avg_reward - baseline_summary.avg_reward
+    violation_improvement = baseline_summary.avg_safety_violations - trained_summary.avg_safety_violations
+    completion_improvement = trained_summary.completion_rate - baseline_summary.completion_rate
+    if reward_improvement > 0:
+        improvement_msg = f"Reward improved by {reward_improvement:.2f} points over baseline."
+    else:
+        improvement_msg = f"Reward dropped by {abs(reward_improvement):.2f} points vs baseline."
+
+    if violation_improvement > 0:
+        safety_msg = f"Safety violations reduced by {violation_improvement:.2f} per episode."
+    elif violation_improvement < 0:
+        safety_msg = f"Safety violations increased by {abs(violation_improvement):.2f} per episode."
+    else:
+        safety_msg = "Safety violations remained unchanged from baseline."
+
+    if completion_improvement > 0:
+        behavior_msg = f"Completion behavior improved by {completion_improvement:.1f}% with more proactive runway decisions."
+    elif completion_improvement < 0:
+        behavior_msg = f"Completion behavior regressed by {abs(completion_improvement):.1f}%."
+    else:
+        behavior_msg = "Completion behavior did not change from baseline."
+
     payload = {
         "title": "MACE Evaluation Report",
         "baseline_summary": asdict(baseline_summary),
         "trained_summary": asdict(trained_summary),
         "comparison_table": before_after_rows(baseline_summary, trained_summary),
+        "improvement": improvement_msg,
+        "behavior_change": behavior_msg,
+        "safety_change": safety_msg,
         "episodes": len(trained_records),
         "judge_ready": True,
     }

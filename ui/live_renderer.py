@@ -35,12 +35,21 @@ PHASE_LABELS: dict[str, tuple[str, str]] = {
     "phase5_resolution": (("🟢 " if UNICODE_OK else "[P5] ") + "Phase 5: Safe Resolution & Execution", "black on green"),
     "phase6_learning": (("📊 " if UNICODE_OK else "[P6] ") + "Phase 6: Outcome & System Learning", "black on cyan"),
 }
+PHASE_BEATS: dict[str, str] = {
+    "phase1_stable": "Tower cadence is normal. Capacity and traffic are balanced.",
+    "phase2_stress": "Pressure rises. Fuel and runway constraints begin to surface.",
+    "phase3_conflict": "Agents disagree on priorities. Divergence is now explicit.",
+    "phase4_oversight": "Decision climax: oversight arbitrates with safety-first scoring.",
+    "phase5_resolution": "Selected plan executes. Conflicts begin to collapse.",
+    "phase6_learning": "Outcome is evaluated. System captures reward and safety learning.",
+}
 
 
 class LiveRenderer:
-    def __init__(self, frame_delay: float = 0.6) -> None:
+    def __init__(self, frame_delay: float = 0.6, judge_mode: bool = False) -> None:
         self.console = Console()
         self.frame_delay = max(0.0, frame_delay)
+        self.judge_mode = judge_mode
         self._previous_phase_id: str | None = None
         self._previous_violations: int = 0
 
@@ -50,12 +59,29 @@ class LiveRenderer:
         filled = int(width * ratio)
         return "[" + ("#" * filled) + ("-" * (width - filled)) + f"] Step {step}/{total_safe}"
 
+    def _friendly_reason(self, reason: str) -> str:
+        reason_lower = reason.lower()
+        if "prioritized_" in reason_lower:
+            return "Selected because: minimizes risk under fuel + runway constraints."
+        if "highest_scoring" in reason_lower:
+            return "Selected because: highest safety score across competing proposals."
+        if "invalid" in reason_lower:
+            return "Selected because: rejected unsafe/invalid actions from other agents."
+        if "trained_policy" in reason_lower:
+            return "Selected because: trained policy held the strongest safety-confidence profile."
+        return reason.replace("_", " ")
+
+    def _narrative_action(self, action) -> str:
+        if action.kind.value == "noop":
+            return "maintain stable operations (no intervention)"
+        return action_label(action)
+
     def render_story_intro(self) -> None:
         self.console.print(
             Panel(
                 "Calm -> Stress -> Conflict -> Oversight -> Resolution -> Learning\n"
                 "This demo is narrated as a control-tower story arc for judges.",
-                title="MACE Cinematic Story Flow",
+                title="MACE Cinematic Story Flow" + (" (Judge Mode)" if self.judge_mode else ""),
                 border_style="bold cyan",
             )
         )
@@ -64,8 +90,9 @@ class LiveRenderer:
         label, style = PHASE_LABELS.get(step.phase_id, PHASE_LABELS["phase1_stable"])
         progress = self._progress_bar(step.step_index, step.max_steps)
         subtitle = "Conflict visible across agents." if step.conflict_detected else "System remains coordinated."
+        beat = PHASE_BEATS.get(step.phase_id, "")
         return Panel(
-            f"{progress}\n{subtitle}",
+            f"{progress}\n{subtitle}\n{beat}",
             title=label,
             style=style,
             border_style="white",
@@ -81,7 +108,7 @@ class LiveRenderer:
         for agent_name, score in sorted(step.oversight_scores.items(), key=lambda item: item[0]):
             selected = agent_name == step.oversight_selected_agent
             status = Text("SELECTED", style="bold black on bright_blue") if selected else Text("REJECTED", style="bold red")
-            reason = step.oversight_reason if selected else "rejected_by_oversight"
+            reason = self._friendly_reason(step.oversight_reason) if selected else "Rejected by oversight scorer."
             table.add_row(agent_name.upper(), f"{score:.2f}", status, reason)
         return table
 
@@ -116,26 +143,42 @@ class LiveRenderer:
         time.sleep(self.frame_delay)
 
         # Step 2: ATC decision
-        self.console.print(Panel(action_label(step.atc_action), title="Step 2 - ATC Decision", border_style="cyan"))
+        self.console.print(Panel(self._narrative_action(step.atc_action), title="Step 2 - ATC Decision", border_style="cyan"))
         time.sleep(self.frame_delay)
 
         # Step 3: Airline decision
-        self.console.print(Panel(action_label(step.airline_action), title="Step 3 - Airline Decision", border_style="yellow"))
+        self.console.print(Panel(self._narrative_action(step.airline_action), title="Step 3 - Airline Decision", border_style="yellow"))
         time.sleep(self.frame_delay)
 
         # Step 4: Ops + Weather
-        ops_weather = f"OPS: {action_label(step.ops_action)}\nWEATHER: {step.weather_note}"
+        ops_weather = f"OPS: {self._narrative_action(step.ops_action)}\nWEATHER: {step.weather_note}"
         self.console.print(Panel(ops_weather, title="Step 4 - Ops + Weather", border_style="blue"))
         time.sleep(self.frame_delay)
 
         # Step 5: Oversight arbitration
         oversight_title = Text(f"Step 5 - Oversight Arbitration (selected: {step.oversight_selected_agent.upper()})")
-        self.console.print(Panel(step.oversight_reason, title=oversight_title, border_style="magenta"))
+        reason_line = self._friendly_reason(step.oversight_reason)
+        self.console.print(Panel(reason_line, title=oversight_title, border_style="magenta"))
         self.console.print(self._build_oversight_table(step))
+        if self.judge_mode:
+            self.console.print(
+                Panel(
+                    reason_line,
+                    title="Oversight Hero Moment",
+                    style="bold white on blue",
+                    border_style="bright_white",
+                )
+            )
         time.sleep(self.frame_delay)
 
         # Step 6: Final environment action
-        self.console.print(Panel(action_label(step.final_action), title="Step 6 - Final Environment Action", border_style="green"))
+        self.console.print(
+            Panel(
+                self._narrative_action(step.final_action),
+                title="Step 6 - Final Environment Action",
+                border_style="green",
+            )
+        )
         time.sleep(self.frame_delay)
 
         # Step 7: Reward update / learning
@@ -150,3 +193,28 @@ class LiveRenderer:
         if orchestrate:
             self.console.print(build_orchestration_table(step))
             time.sleep(self.frame_delay)
+
+    def render_episode_summary(
+        self,
+        *,
+        total_reward: float,
+        violations: int,
+        completion_status: str,
+        key_decisions: str,
+        safety_improved: bool,
+    ) -> None:
+        summary_lines = [
+            f"Total Reward: {total_reward:.2f}",
+            f"Violations: {violations}",
+            f"Completion: {completion_status}",
+            f"Key decisions made: {key_decisions}",
+            f"Safety improved: {'YES' if safety_improved else 'NO'}",
+        ]
+        self.console.print(
+            Panel(
+                "\n".join(summary_lines),
+                title="Final Episode Summary Panel",
+                style="black on bright_white",
+                border_style="bright_white",
+            )
+        )

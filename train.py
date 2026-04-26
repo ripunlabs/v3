@@ -15,15 +15,24 @@ from evaluation.reporting import summarize, write_metrics_json, write_report_jso
 from reports.plots import save_reward_curve, save_safety_curve
 from training.ppo_loop import PPOConfig, PPOTrainer, model_payload
 
+BASE_DIR = Path(__file__).resolve().parent
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train MACE using a minimal PPO-style policy update loop.")
-    parser.add_argument("--episodes", type=int, default=50, help="Training episodes.")
+    parser.add_argument("--episodes", type=int, default=200, help="Training episodes.")
     parser.add_argument("--seed", type=int, default=42, help="Base seed.")
     parser.add_argument("--learning-rate", type=float, default=0.05, help="PPO update learning rate.")
     parser.add_argument("--clip-epsilon", type=float, default=0.2, help="PPO clipping epsilon.")
     parser.add_argument("--model-out", type=str, default="training/model_latest.json", help="Trained model path.")
     return parser.parse_args()
+
+
+def _resolve_output_path(path_str: str) -> Path:
+    path = Path(path_str)
+    if path.is_absolute():
+        return path
+    return BASE_DIR / path
 
 
 def _print_comparison(console: Console, baseline, trained) -> None:
@@ -63,7 +72,7 @@ def main() -> None:
     )
     train_history = trainer.train()
 
-    model_path = Path(args.model_out)
+    model_path = _resolve_output_path(args.model_out)
     model_path.parent.mkdir(parents=True, exist_ok=True)
     model_path.write_text(
         json.dumps(model_payload(trainer.policy, trainer.config), indent=2),
@@ -78,21 +87,21 @@ def main() -> None:
     _print_comparison(console, baseline_summary, trained_summary)
 
     reward_curve = [ep.reward for ep in train_history]
-    save_reward_curve(Path("reward_curve.png"), reward_curve)
+    save_reward_curve(BASE_DIR / "reward_curve.png", reward_curve)
     save_safety_curve(
-        Path("reports/safety_curve.png"),
+        BASE_DIR / "reports" / "safety_curve.png",
         [x.safety_violations for x in baseline_records],
         [x.safety_violations for x in trained_records],
     )
     write_metrics_json(
-        path=Path("reports/metrics.json"),
+        path=BASE_DIR / "reports" / "metrics.json",
         episodes=args.episodes,
         seed=args.seed,
         baseline_records=baseline_records,
         trained_records=trained_records,
     )
     write_report_json(
-        path=Path("reports/report.json"),
+        path=BASE_DIR / "reports" / "report.json",
         baseline_records=baseline_records,
         trained_records=trained_records,
     )

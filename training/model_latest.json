@@ -1,11 +1,11 @@
 {
   "policy_type": "minimal_ppo_preference",
   "preferences": {
-    "noop": -1.8440107210842498,
-    "assign_runway": -1.8725604914125031,
-    "sequence_landing": 0.5304475238924086,
-    "clear_to_land": 1.6927789743584754,
-    "declare_emergency": -0.2559720147033512
+    "noop": -2.432323370881315,
+    "assign_runway": -1.2259282359226102,
+    "sequence_landing": -0.5035048382905329,
+    "clear_to_land": 5.195230965792274,
+    "declare_emergency": -0.432917971942446
   },
   "learning_rate": 0.05,
   "clip_epsilon": 0.2,

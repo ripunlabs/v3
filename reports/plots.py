@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def _running_average(values: list[float], window: int = 5) -> list[float]:
@@ -25,9 +26,17 @@ def _running_average(values: list[float], window: int = 5) -> list[float]:
 def save_reward_curve(path: Path, rewards: list[float]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(9, 4.5))
-    plt.plot(rewards, label="Episode Reward", linewidth=1.8)
+    x = list(range(len(rewards)))
+    plt.plot(x, rewards, label="Episode Reward", linewidth=1.8)
     if rewards:
-        plt.plot(_running_average(rewards), linestyle="--", linewidth=2.0, label="Running Average")
+        running = _running_average(rewards)
+        plt.plot(x, running, linestyle="--", linewidth=2.0, label="Running Average")
+        if len(rewards) >= 2:
+            coeffs = np.polyfit(np.array(x), np.array(rewards), 1)
+            slope, intercept = float(coeffs[0]), float(coeffs[1])
+            trend = [slope * i + intercept for i in x]
+            trend_label = f"Trend (upward)" if slope >= 0 else "Trend (downward)"
+            plt.plot(x, trend, linestyle=":", linewidth=2.0, label=trend_label)
     plt.title("MACE Reward Curve")
     plt.xlabel("Episode")
     plt.ylabel("Reward")
@@ -41,8 +50,16 @@ def save_reward_curve(path: Path, rewards: list[float]) -> None:
 def save_safety_curve(path: Path, baseline_violations: list[int], trained_violations: list[int]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(9, 4.5))
-    plt.plot(baseline_violations, label="Baseline Safety Violations", linewidth=1.6, alpha=0.75)
-    plt.plot(trained_violations, label="Trained Safety Violations", linewidth=1.8)
+    bx = list(range(len(baseline_violations)))
+    tx = list(range(len(trained_violations)))
+    plt.plot(bx, baseline_violations, label="Baseline Safety Violations", linewidth=1.6, alpha=0.75)
+    plt.plot(tx, trained_violations, label="Trained Safety Violations", linewidth=1.8)
+    if len(trained_violations) >= 2:
+        coeffs = np.polyfit(np.array(tx), np.array(trained_violations), 1)
+        slope, intercept = float(coeffs[0]), float(coeffs[1])
+        trend = [slope * i + intercept for i in tx]
+        trend_label = "Trained Trend (downward)" if slope <= 0 else "Trained Trend (upward)"
+        plt.plot(tx, trend, linestyle=":", linewidth=2.0, label=trend_label)
     plt.title("MACE Safety Violations per Episode")
     plt.xlabel("Episode")
     plt.ylabel("Violations")

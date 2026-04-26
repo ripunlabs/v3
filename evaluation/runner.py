@@ -56,18 +56,21 @@ def _safe_scores(oversight: dict) -> dict[str, float]:
 
 
 def _phase_id(step_index: int, max_steps: int) -> str:
-    if max_steps <= 0:
+    """Deterministic cinematic phase schedule for judge demos.
+
+    Uses observed step index windows so the story always progresses in order
+    during typical hard-task demos instead of depending on max_steps horizon.
+    """
+    _ = max_steps  # Retained for signature compatibility.
+    if step_index <= 1:
         return "phase1_stable"
-    progress = (step_index + 1) / max_steps
-    if progress <= 0.16:
-        return "phase1_stable"
-    if progress <= 0.34:
+    if step_index <= 3:
         return "phase2_stress"
-    if progress <= 0.52:
+    if step_index <= 6:
         return "phase3_conflict"
-    if progress <= 0.68:
+    if step_index <= 8:
         return "phase4_oversight"
-    if progress <= 0.84:
+    if step_index <= 10:
         return "phase5_resolution"
     return "phase6_learning"
 
@@ -149,25 +152,23 @@ def run_episode_with_orchestration(
         oversight_reason = "atc_default"
         trained_action = None
 
-        if mode == "trained" and trained_policy is not None:
-            selected_action = trained_policy.choose_action(obs)
-            selected_agent = "trained_policy"
-            oversight_reason = "trained_policy_direct_control"
-        else:
-            candidates = {"atc": atc_action, "airline": airline_action, "ops": ops_action}
-            if mode == "demo" and trained_policy is not None:
-                trained_action = trained_policy.choose_action(obs)
-                candidates["trained"] = trained_action
-            oversight = oversight_agent.resolve(candidates, state)
-            selected_agent = str(oversight.get("selected_agent", "atc"))
-            scores = _safe_scores(oversight)
-            oversight_reason = str(oversight.get("reason", "oversight_selection"))
-            if selected_agent == "airline":
-                selected_action = airline_action
-            elif selected_agent == "ops":
-                selected_action = ops_action
-            elif selected_agent == "trained" and trained_action is not None:
-                selected_action = trained_action
+        candidates = {"atc": atc_action, "airline": airline_action, "ops": ops_action}
+        if mode in {"trained", "demo"} and trained_policy is not None:
+            trained_action = trained_policy.choose_action(obs)
+            candidates["trained"] = trained_action
+
+        # Always arbitrate with oversight for non-baseline modes so trained runs
+        # are safety-filtered and comparable to the control-tower decision stack.
+        oversight = oversight_agent.resolve(candidates, state)
+        selected_agent = str(oversight.get("selected_agent", "atc"))
+        scores = _safe_scores(oversight)
+        oversight_reason = str(oversight.get("reason", "oversight_selection"))
+        if selected_agent == "airline":
+            selected_action = airline_action
+        elif selected_agent == "ops":
+            selected_action = ops_action
+        elif selected_agent == "trained" and trained_action is not None:
+            selected_action = trained_action
 
         next_obs: AACEObservation = env.step(selected_action)
         total_reward += float(next_obs.reward or 0.0)

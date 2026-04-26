@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import random
 
 from env.environment import AACEEnvironment
 from env.models import ActionKind
@@ -14,7 +15,7 @@ TASK_CYCLE = ("easy", "medium", "hard")
 
 @dataclass
 class PPOConfig:
-    episodes: int = 50
+    episodes: int = 200
     seed: int = 42
     learning_rate: float = 0.05
     clip_epsilon: float = 0.2
@@ -60,13 +61,19 @@ class PPOTrainer:
 
             while not done:
                 probs = self.policy.action_probs(obs)
-                action = self.policy.choose_action(obs)
+                epsilon = max(0.1, 1.0 - (episode / max(1, self.config.episodes)))
+                if random.random() < epsilon:
+                    action = random.choice(self.policy.available_actions(obs))
+                else:
+                    action = self.policy.choose_action(obs)
                 selected_kind = action.kind.value
                 chosen_action_kinds.append(selected_kind)
                 old_probs.append(max(1e-8, probs.get(selected_kind, 1e-8)))
 
-                obs = env.step(action)
-                signal = compute_training_reward(obs, previous_violation_count=previous_violations)
+                next_obs = env.step(action)
+                signal = compute_training_reward(obs, action, next_obs, info={"epsilon": epsilon})
+                self._online_policy_update(selected_kind, signal.total)
+                obs = next_obs
                 previous_violations = int((obs.metadata or {}).get("violation_count", previous_violations))
                 rewards.append(signal.total)
                 total_reward += signal.total
@@ -115,6 +122,12 @@ class PPOTrainer:
             objective = clipped_ratio * adv
             step = self.config.learning_rate * max(-1.0, min(1.0, objective))
             self.policy.preferences[kind] = current_pref + step
+
+    def _online_policy_update(self, action_kind: str, reward: float) -> None:
+        """Per-step reward update to accelerate learning signal propagation."""
+        current_pref = self.policy.preferences.get(action_kind, 0.0)
+        normalized = max(-1.0, min(1.0, reward / 25.0))
+        self.policy.preferences[action_kind] = current_pref + (self.config.learning_rate * 0.5 * normalized)
 
 
 def load_policy_from_json(payload: dict) -> PreferencePolicy:

@@ -102,6 +102,11 @@ class PreferencePolicy:
         best_kind = max(actions, key=lambda k: self.preferences.get(k.value, -999.0))
         return actions.get(best_kind, AACEAction(kind=ActionKind.NOOP))
 
+    def available_actions(self, obs: AACEObservation) -> list[AACEAction]:
+        """Return available candidate actions for exploration."""
+        actions = _candidate_actions(obs)
+        return list(actions.values()) if actions else [AACEAction(kind=ActionKind.NOOP)]
+
     def action_probs(self, obs: AACEObservation) -> dict[str, float]:
         actions = _candidate_actions(obs)
         if not actions:
