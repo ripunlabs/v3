@@ -1,0 +1,12 @@
+{
+  "policy_type": "simple_ppo_preference",
+  "preferences": {
+    "noop": 0.29601999999999995,
+    "assign_runway": 0.9346499999999999,
+    "sequence_landing": 0.72619,
+    "clear_to_land": 1.3321800000000037,
+    "declare_emergency": 0.3438099999999998
+  },
+  "learning_rate": 0.05,
+  "clip_epsilon": 0.2
+}

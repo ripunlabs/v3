@@ -1,0 +1,253 @@
+{
+	"info": {
+		"_postman_id": "aace-openenv-api-001",
+		"name": "MACE — OpenEnv HTTP API",
+		"description": "Multi-Agent Aviation Control & Oversight Environment served by FastAPI (openenv `create_app` + MACE **stateful HTTP**).\n\n**Base URL:** set `baseUrl` (default `http://127.0.0.1:7860`). Hugging Face: `https://YOUR_SPACE_ID.hf.space` (no trailing slash).\n\n**HTTP sessions:** `POST /reset` then `POST /step` share one environment per **`X-OpenEnv-Session-Id`** header. Omit the header to use the shared `default` session (fine for a single Postman tab).\n\n**WebSocket:** `{{wsBaseUrl}}/ws` still works for persistent sessions with message types `reset` | `step` | `state` | `close`.\n\n**Tasks:** `task_id` in reset body: `easy` | `medium` | `hard`.\n\n**Actions:** `GET /schema` → `action`, or see *Environment control*.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://127.0.0.1:7860"
+		},
+		{
+			"key": "wsBaseUrl",
+			"value": "ws://127.0.0.1:7860",
+			"description": "Use wss:// on Hugging Face Spaces"
+		}
+	],
+	"item": [
+		{
+			"name": "Health & root",
+			"item": [
+				{
+					"name": "GET / (readiness JSON)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/",
+						"description": "Lightweight JSON for platform probes (Hugging Face, load balancers)."
+					}
+				},
+				{
+					"name": "HEAD / (empty 200)",
+					"request": {
+						"method": "HEAD",
+						"header": [],
+						"url": "{{baseUrl}}/",
+						"description": "Some proxies use HEAD for readiness."
+					}
+				},
+				{
+					"name": "GET /health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/health",
+						"description": "OpenEnv health: `{\"status\":\"healthy\"}`."
+					}
+				}
+			]
+		},
+		{
+			"name": "Schema & metadata",
+			"item": [
+				{
+					"name": "GET /openapi.json",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/openapi.json",
+						"description": "Full OpenAPI document (all paths and models)."
+					}
+				},
+				{
+					"name": "GET /docs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/docs",
+						"description": "Swagger UI (browser)."
+					}
+				},
+				{
+					"name": "GET /metadata",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/metadata",
+						"description": "Environment name, description, version (fresh env instance)."
+					}
+				},
+				{
+					"name": "GET /schema",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/schema",
+						"description": "Combined JSON Schemas for `action`, `observation`, and `state`."
+					}
+				},
+				{
+					"name": "GET /state",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/state",
+						"description": "MACE: same HTTP session as `/reset`/`/step` (optional header `X-OpenEnv-Session-Id`). Call `POST /reset` first or you get 400."
+					}
+				}
+			]
+		},
+		{
+			"name": "Environment control (HTTP)",
+			"description": "MACE replaces stock OpenEnv HTTP control with **session-scoped** `/reset`, `/step`, and `/state`. Send optional header **`X-OpenEnv-Session-Id`** (same value on each request in a run). Omit it to use the built-in `default` session.\n\nOrder: **reset → step → step …**",
+			"item": [
+				{
+					"name": "POST /reset — easy task",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"seed\": 42,\n  \"episode_id\": \"postman-easy-1\",\n  \"task_id\": \"easy\"\n}"
+						},
+						"url": "{{baseUrl}}/reset",
+						"description": "Optional fields: `seed`, `episode_id`, `task_id` (`easy` | `medium` | `hard`). Extra keys allowed by OpenEnv reset model."
+					}
+				},
+				{
+					"name": "POST /reset — medium task",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"seed\": 0,\n  \"episode_id\": \"postman-medium-1\",\n  \"task_id\": \"medium\"\n}"
+						},
+						"url": "{{baseUrl}}/reset"
+					}
+				},
+				{
+					"name": "POST /reset — hard task",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"seed\": 0,\n  \"episode_id\": \"postman-hard-1\",\n  \"task_id\": \"hard\"\n}"
+						},
+						"url": "{{baseUrl}}/reset"
+					}
+				},
+				{
+					"name": "POST /step — noop",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": {\n    \"kind\": \"noop\",\n    \"metadata\": {}\n  }\n}"
+						},
+						"url": "{{baseUrl}}/step",
+						"description": "Call **POST /reset** in the same session first. Optional header `X-OpenEnv-Session-Id`. `MACEAction`: `kind` required; see `/schema`."
+					}
+				},
+				{
+					"name": "POST /step — assign_runway",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": {\n    \"kind\": \"assign_runway\",\n    \"flight_id\": \"AC001\",\n    \"runway_id\": \"R1\",\n    \"metadata\": {}\n  },\n  \"timeout_s\": 30\n}"
+						},
+						"url": "{{baseUrl}}/step",
+						"description": "Easy task: flights `AC001`–`AC003`. Adjust IDs from your last observation."
+					}
+				},
+				{
+					"name": "POST /step — clear_to_land",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": {\n    \"kind\": \"clear_to_land\",\n    \"flight_id\": \"AC001\",\n    \"metadata\": {}\n  }\n}"
+						},
+						"url": "{{baseUrl}}/step"
+					}
+				}
+			]
+		},
+		{
+			"name": "WebSocket /ws (session)",
+			"description": "Multi-step rollouts need a **WebSocket** connection (this collection’s HTTP tab cannot send WS frames).\n\n**In Postman:** New → **WebSocket** → URL:\n- Local: `ws://127.0.0.1:7860/ws`\n- Hugging Face: `wss://YOUR_SPACE.hf.space/ws`\n\nOr set variable `wsBaseUrl` to `ws://127.0.0.1:7860` / `wss://YOUR_SPACE.hf.space` and open **`{{wsBaseUrl}}/ws`** in a WebSocket request.\n\n**Messages (send as JSON text):**\n\n1. Reset\n```json\n{\"type\":\"reset\",\"data\":{\"seed\":42,\"episode_id\":\"ws-1\",\"task_id\":\"easy\"}}\n```\n\n2. Step (noop)\n```json\n{\"type\":\"step\",\"data\":{\"kind\":\"noop\",\"metadata\":{}}}\n```\n\n3. State\n```json\n{\"type\":\"state\"}\n```\n\n4. Close\n```json\n{\"type\":\"close\"}\n```\n\n**Responses:** `type` = `observation` (`data` has observation/reward/done), `state`, or `error`.",
+			"item": [
+				{
+					"name": "Ping HTTP first (server up)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/health",
+						"description": "Run this before opening a WebSocket. Then create a separate **WebSocket** request to `{{wsBaseUrl}}/ws` (not this HTTP tab)."
+					}
+				}
+			]
+		},
+		{
+			"name": "MCP (optional)",
+			"description": "JSON-RPC 2.0 over HTTP when the environment exposes MCP tools.",
+			"item": [
+				{
+					"name": "POST /mcp — tools/list (template)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"tools/list\",\n  \"params\": {},\n  \"id\": 1\n}"
+						},
+						"url": "{{baseUrl}}/mcp",
+						"description": "Adjust `method` / `params` per OpenEnv MCP docs; MACE may or may not expose tools."
+					}
+				}
+			]
+		}
+	]
+}

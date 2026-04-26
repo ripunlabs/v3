@@ -1,0 +1,63 @@
+{
+  "episodes": 2,
+  "seed": 123,
+  "baseline_summary": {
+    "avg_reward": 1.3457499999999998,
+    "avg_violations": 2.5,
+    "completion_rate": 100.0
+  },
+  "trained_summary": {
+    "avg_reward": 3.863,
+    "avg_violations": 0.0,
+    "completion_rate": 100.0
+  },
+  "before_after_table": [
+    {
+      "metric": "avg_reward",
+      "before": 1.3457,
+      "after": 3.863
+    },
+    {
+      "metric": "avg_safety_violations",
+      "before": 2.5,
+      "after": 0.0
+    },
+    {
+      "metric": "completion_rate_percent",
+      "before": 100.0,
+      "after": 100.0
+    }
+  ],
+  "baseline_rows": [
+    {
+      "episode": 0,
+      "mode": "baseline",
+      "total_reward": 1.4164999999999999,
+      "violations": 2,
+      "completion": true
+    },
+    {
+      "episode": 1,
+      "mode": "baseline",
+      "total_reward": 1.275,
+      "violations": 3,
+      "completion": true
+    }
+  ],
+  "trained_rows": [
+    {
+      "episode": 0,
+      "mode": "trained",
+      "total_reward": 3.51,
+      "violations": 0,
+      "completion": true
+    },
+    {
+      "episode": 1,
+      "mode": "trained",
+      "total_reward": 4.216,
+      "violations": 0,
+      "completion": true
+    }
+  ]
+}

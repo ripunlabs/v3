@@ -1,0 +1,14 @@
+spec_version: 1
+name: mace
+description: >-
+  Multi-Agent Aviation Control & Oversight Environment (MACE) — terminal-area runway assignment,
+  sequencing, weather-constrained operations, and fuel-aware flow management for agent evaluation.
+version: "1.0.0"
+type: space
+runtime: fastapi
+app: app:app
+port: 7860
+tags:
+  - openenv
+  - aviation
+  - operations

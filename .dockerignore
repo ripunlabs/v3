@@ -1,0 +1,53 @@
+# Hugging Face Spaces / Docker: shrink context and speed builds.
+# Do NOT ignore files required by Dockerfile (README.md, pyproject.toml, requirements.txt,
+# openenv.yaml, app.py, inference.py, env/, server/).
+
+# VCS & local env
+.git
+.gitignore
+.github
+
+# Secrets
+.env
+.env.*
+
+# Python caches & venvs (do not list "env" — ./env/ is the application package)
+__pycache__
+**/__pycache__
+*.py[cod]
+*$py.class
+.venv
+venv
+ENV
+
+# Tests & dev-only (not needed in runtime image)
+tests
+.pytest_cache
+.hypothesis
+postman
+
+# Build / packaging leftovers from local machine
+build
+dist
+*.egg-info
+.eggs
+
+# Coverage & type-check caches
+.coverage
+.coverage.*
+htmlcov
+.mypy_cache
+.ruff_cache
+.tox
+.nox
+
+# Lockfile optional: image uses requirements.txt + pip install . (keeps context small)
+uv.lock
+
+# Editor / OS
+.idea
+.vscode
+*.swp
+.DS_Store
+Thumbs.db
+
